@@ -4,16 +4,16 @@ import matplotlib.pyplot as plt
 from math import sqrt, floor
 
 # Pfade zu den jp2-Dateien (Infrarot)
-b12_path = "images/2025_Flin_Flon/infrared/T13UFA_20250602T175931_B12_20m.jp2"
-b11_path = "images/2025_Flin_Flon/infrared/T13UFA_20250602T175931_B11_20m.jp2"
-b8a_path = "images/2025_Flin_Flon/infrared/T13UFA_20250602T175931_B8a_20m.jp2"
+b12_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B12_20m.jp2"
+b11_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B11_20m.jp2"
+b8a_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B8a_20m.jp2"
 
 # Pfade zu den jp2-Dateien (True-Color)
-b04_path = "images/2025_Flin_Flon/color/T13UFA_20250602T175931_B04_20m.jp2"
-b03_path = "images/2025_Flin_Flon/color/T13UFA_20250602T175931_B03_20m.jp2"
-b02_path = "images/2025_Flin_Flon/color/T13UFA_20250602T175931_B02_20m.jp2"
+b04_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B04_20m.jp2"
+b03_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B03_20m.jp2"
+b02_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B02_20m.jp2"
 
-cm_path = "images/2025_Flin_Flon/MSK_CLDPRB_20m.jp2"
+cm_path = "images/2025_Cape_City_Mountain_Small_Wildfire/MSK_CLDPRB_20m.jp2"
 
 # Lade die Bänder (alle 20m → gleiche Form)
 def load_band(path):
@@ -57,7 +57,7 @@ infrared = stack_img(b12_norm, b11_norm, b8a_norm)
 color = stack_img(b04_norm, b03_norm, b02_norm)
 
 # Detektion des Feuers
-threshold = 0.5
+threshold = 0.9
 fire_mask = b12_norm > threshold # Schaue nur nach B12-Band, da Feuer in diesem Wellenlängenbereich am stärksten reflektiert
 fire_mask = fire_mask & (cloud_mask == 0)
 fire_indices = np.where(fire_mask)
