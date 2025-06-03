@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 from math import sqrt, floor
 
 # Pfade zu den jp2-Dateien (Infrarot)
-b12_path = "images/img1/infrared/T13UDA_20250531T182821_B12_20m.jp2"
-b11_path = "images/img1/infrared/T13UDA_20250531T182821_B11_20m.jp2"
-b8a_path = "images/img1/infrared/T13UDA_20250531T182821_B8a_20m.jp2"
+b12_path = "images/img2/infrared/T14ULG_20250530T174931_B12_20m.jp2"
+b11_path = "images/img2/infrared/T14ULG_20250530T174931_B11_20m.jp2"
+b8a_path = "images/img2/infrared/T14ULG_20250530T174931_B8a_20m.jp2"
 
 # Pfade zu den jp2-Dateien (True-Color)
-b04_path = "images/img1/color/T13UDA_20250531T182821_B04_20m.jp2"
-b03_path = "images/img1/color/T13UDA_20250531T182821_B03_20m.jp2"
-b02_path = "images/img1/color/T13UDA_20250531T182821_B02_20m.jp2"
+b04_path = "images/img2/color/T14ULG_20250530T174931_B04_20m.jp2"
+b03_path = "images/img2/color/T14ULG_20250530T174931_B03_20m.jp2"
+b02_path = "images/img2/color/T14ULG_20250530T174931_B02_20m.jp2"
 
 # Lade die Bänder (alle 20m → gleiche Form)
 def load_band(path):
@@ -51,7 +51,7 @@ infrared = stack_img(b12_norm, b11_norm, b8a_norm)
 color = stack_img(b04_norm, b03_norm, b02_norm)
 
 # Detektion des Feuers
-threshold = 0.5
+threshold = 0.9
 fire_mask = b12_norm > threshold # Schaue nur nach B12-Band, da Feuer in diesem Wellenlängenbereich am stärksten reflektiert
 fire_indices = np.where(fire_mask)
 
