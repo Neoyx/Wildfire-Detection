@@ -3,17 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, floor
 
+img_path = "2025_Cape_City_Mountain_Small_Wildfire"
+img_name = "T34HBH_20250223T081839"
+
 # Pfade zu den jp2-Dateien (Infrarot)
-b12_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B12_20m.jp2"
-b11_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B11_20m.jp2"
-b8a_path = "images/2025_Cape_City_Mountain_Small_Wildfire/infrared/T34HBH_20250223T081839_B8a_20m.jp2"
+b12_path = f"images/{img_path}/infrared/{img_name}_B12_20m.jp2"
+b11_path = f"images/{img_path}/infrared/{img_name}_B11_20m.jp2"
+b8a_path = f"images/{img_path}/infrared/{img_name}_B8a_20m.jp2"
 
 # Pfade zu den jp2-Dateien (True-Color)
-b04_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B04_20m.jp2"
-b03_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B03_20m.jp2"
-b02_path = "images/2025_Cape_City_Mountain_Small_Wildfire/color/T34HBH_20250223T081839_B02_20m.jp2"
+b04_path = f"images/{img_path}/color/{img_name}_B04_20m.jp2"
+b03_path = f"images/{img_path}/color/{img_name}_B03_20m.jp2"
+b02_path = f"images/{img_path}/color/{img_name}_B02_20m.jp2"
 
-cm_path = "images/2025_Cape_City_Mountain_Small_Wildfire/MSK_CLDPRB_20m.jp2"
+cm_path = f"images/{img_path}/MSK_CLDPRB_20m.jp2"
 
 # Lade die Bänder (alle 20m → gleiche Form)
 def load_band(path):
@@ -57,14 +60,18 @@ infrared = stack_img(b12_norm, b11_norm, b8a_norm)
 color = stack_img(b04_norm, b03_norm, b02_norm)
 
 # Detektion des Feuers
-threshold = 0.9
-fire_mask = b12_norm > threshold # Schaue nur nach B12-Band, da Feuer in diesem Wellenlängenbereich am stärksten reflektiert
-fire_mask = fire_mask & (cloud_mask == 0)
+fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # low b11 and b8a (G, B) to exclude clouds and vegetation
+#fire_mask = b12_norm > 0.7
+#fire_mask = fire_mask & (cloud_mask == 0)
+
+
 fire_indices = np.where(fire_mask)
 
 # Markierung des Feuers im Farbbild in rot
 color_marked = color.copy()
 color_marked[fire_indices[0], fire_indices[1]] = [1, 0, 0]
+
+print(fire_indices)
 
 # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
 
