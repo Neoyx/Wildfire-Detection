@@ -92,8 +92,13 @@ print(core_fire_indices)
 
 # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
 
+kernel = np.ones((7,7),np.uint8)
+combinedRegion_closed = cv2.morphologyEx(final_fire_mask, cv2.MORPH_CLOSE, kernel)
 
-fullscreen = True
+kernel2 = np.ones((2,2),np.uint8)
+combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
+
+fullscreen = False
 sync_zoom = True
 
 @dataclass
@@ -106,9 +111,8 @@ subplots = [
     Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
     Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
     Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
-    Subplot("Farbbild (B04, B03, B02 – 20m)", color),
-    Subplot("SWIR Composite (B12, B8A, B04)", swir_composite),
-    Subplot("NIR-SWIR Composite (B8A, B11, B04)", nir_swir_composite),
+    Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
+    Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray')
 ]
 
 # Visualisierung
