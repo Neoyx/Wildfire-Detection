@@ -64,6 +64,6 @@ def get_band_paths(img: Image):
     b02_path = f"{base_path}/color/{img.file_name_prefix}_B02_20m.jp2"
 
     # Cloud mask (if available)
-    cm_path = f"{base_path}/MSK_CLDPRB_20m.jp2"  # Uncomment if cloud mask is needed
+    cm_path = f"{base_path}/MSK_CLDPRB_20m.jp2"
     
     return b12_path, b11_path, b8a_path, b04_path, b03_path, b02_path, cm_path
