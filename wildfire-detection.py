@@ -136,4 +136,10 @@ for i, subplot in enumerate(subplots, start=1):
     plt.imshow(subplot.img, cmap=subplot.cmap)
     plt.title(subplot.title)
     plt.axis('off')
+
+# Hide any remaining empty subplots
+for i in range(len(subplots), rows * 3):
+    plt.subplot(rows, 3, i + 1)
+    plt.axis('off')
+
 plt.show()
