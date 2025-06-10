@@ -3,9 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, floor
 from dataclasses import dataclass
+import cv2
 
-img_path = "2025_Malibu_Wildfire"
-img_name = "T11SLT_20250107T183649"
+img_path = "2025_Flin_Flon"
+img_name = "T13UFA_20250602T175931"
 
 # Pfade zu den jp2-Dateien (Infrarot)
 b12_path = f"images/{img_path}/infrared/{img_name}_B12_20m.jp2"
@@ -64,22 +65,48 @@ nir_swir_composite = stack_img(b8a_norm, b11_norm, b04_norm) # NIR-SWIR Composit
 color = stack_img(b04_norm, b03_norm, b02_norm)
 
 # Detektion des Feuers
-fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # low b11 and b8a (G, B) to exclude clouds and vegetation
-#fire_mask = b12_norm > 0.7
-#fire_mask = fire_mask & (cloud_mask == 0)
+outer_fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # & (cloud_mask == 0) # low b11 and b8a (G, B) to exclude clouds and vegetation
+outer_fire_mask = outer_fire_mask.astype(np.uint8)
 
+# dilate the fire to enlarge the detection radius for the core fire
+fire_closing = np.ones((135, 135), np.uint8)
+#dilated_fire = cv2.dilate(outer_fire_mask.astype(np.uint8), filter, iterations=5)
+closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
 
-fire_indices = np.where(fire_mask)
+# search for yellow/white fire-pixels near the red pixels
+# & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) ==> Alternative zur cloud_mask == 0
+core_fire_mask = (b12_norm > 0.7) & (b11_norm > 0.7) & (closed_fire_mask == 1) & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) # & (cloud_mask == 0)
+core_fire_mask = core_fire_mask.astype(np.uint8)
+
+# TODO: Fehldetektierte rot-angestrahlte Wolken herausfiltern
+# Problem an Anwendung von Cloudmask: Unter den Wolken liegende Feuer werden nicht mehr erkannt
+# ==> Eventuelle Loesung: Cloud-Closing (siehe fortfolgend)
+
+# apply another closing to fill the holes created by the cloudmask
+#cloud_closing = np.ones((5, 5), np.uint8)
+#closed_core_fire_mask = cv2.morphologyEx(core_fire_mask, cv2.MORPH_CLOSE, cloud_closing)
+# Problem: Unter Wolken liegende Feuer können NICHT reproduziert werden
+
+# TODO: Groesse der Filtermasken evtl. je nach Groesse des Feuers dynamisch anpassen
+
+outer_fire_indices = np.where(outer_fire_mask)
+core_fire_indices = np.where(core_fire_mask)
+
+final_fire_mask = outer_fire_mask | core_fire_mask
 
 # Markierung des Feuers im Farbbild in rot
 color_marked = color.copy()
-color_marked[fire_indices[0], fire_indices[1]] = [1, 0, 0]
+color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0]
+color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0]
 
+print(outer_fire_indices)
+print(core_fire_indices)
 
 # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
 
 
 fullscreen = True
+sync_zoom = True
 
 @dataclass
 class Subplot:
@@ -90,7 +117,7 @@ class Subplot:
 subplots = [
     Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
     Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
-    Subplot("Aktive Feuer-Pixel (weiß)", fire_mask, cmap='gray'),
+    Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
     Subplot("Farbbild (B04, B03, B02 – 20m)", color),
     Subplot("SWIR Composite (B12, B8A, B04)", swir_composite),
     Subplot("NIR-SWIR Composite (B8A, B11, B04)", nir_swir_composite),
@@ -99,10 +126,10 @@ subplots = [
 # Visualisierung
 rows = int(np.ceil(len(subplots) / 3))
 
+plt.subplots(rows, 3, figsize=(16, 8), sharex=sync_zoom, sharey=sync_zoom)
+
 if fullscreen:
     plt.get_current_fig_manager().full_screen_toggle()
-else:
-    plt.figure(figsize=(16, 8))
 
 for i, subplot in enumerate(subplots, start=1):
     plt.subplot(rows, 3, i)
