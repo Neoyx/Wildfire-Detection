@@ -2,9 +2,10 @@ import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, floor
+import cv2
 
-img_path = "2025_Cape_City_Mountain_Small_Wildfire"
-img_name = "T34HBH_20250223T081839"
+img_path = "2025_Flin_Flon"
+img_name = "T13UFA_20250602T175931"
 
 # Pfade zu den jp2-Dateien (Infrarot)
 b12_path = f"images/{img_path}/infrared/{img_name}_B12_20m.jp2"
@@ -60,18 +61,42 @@ infrared = stack_img(b12_norm, b11_norm, b8a_norm)
 color = stack_img(b04_norm, b03_norm, b02_norm)
 
 # Detektion des Feuers
-fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # low b11 and b8a (G, B) to exclude clouds and vegetation
-#fire_mask = b12_norm > 0.7
-#fire_mask = fire_mask & (cloud_mask == 0)
+outer_fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # & (cloud_mask == 0) # low b11 and b8a (G, B) to exclude clouds and vegetation
+outer_fire_mask = outer_fire_mask.astype(np.uint8)
 
+# dilate the fire to enlarge the detection radius for the core fire
+fire_closing = np.ones((135, 135), np.uint8)
+#dilated_fire = cv2.dilate(outer_fire_mask.astype(np.uint8), filter, iterations=5)
+closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
 
-fire_indices = np.where(fire_mask)
+# search for yellow/white fire-pixels near the red pixels
+# & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) ==> Alternative zur cloud_mask == 0
+core_fire_mask = (b12_norm > 0.7) & (b11_norm > 0.7) & (closed_fire_mask == 1) & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) # & (cloud_mask == 0)
+core_fire_mask = core_fire_mask.astype(np.uint8)
+
+# TODO: Fehldetektierte rot-angestrahlte Wolken herausfiltern
+# Problem an Anwendung von Cloudmask: Unter den Wolken liegende Feuer werden nicht mehr erkannt
+# ==> Eventuelle Loesung: Cloud-Closing (siehe fortfolgend)
+
+# apply another closing to fill the holes created by the cloudmask
+#cloud_closing = np.ones((5, 5), np.uint8)
+#closed_core_fire_mask = cv2.morphologyEx(core_fire_mask, cv2.MORPH_CLOSE, cloud_closing)
+# Problem: Unter Wolken liegende Feuer können NICHT reproduziert werden
+
+# TODO: Groesse der Filtermasken evtl. je nach Groesse des Feuers dynamisch anpassen
+
+outer_fire_indices = np.where(outer_fire_mask)
+core_fire_indices = np.where(core_fire_mask)
+
+final_fire_mask = outer_fire_mask | core_fire_mask
 
 # Markierung des Feuers im Farbbild in rot
 color_marked = color.copy()
-color_marked[fire_indices[0], fire_indices[1]] = [1, 0, 0]
+color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0]
+color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0]
 
-print(fire_indices)
+print(outer_fire_indices)
+print(core_fire_indices)
 
 # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
 
@@ -88,7 +113,7 @@ plt.title("Infrarotbild (B12, B11, B8A – 20m)")
 plt.axis('off')
 
 plt.subplot(1, 3, 3)
-plt.imshow(fire_mask, cmap='gray')
+plt.imshow(final_fire_mask, cmap='gray')
 plt.title("Aktive Feuer-Pixel (weiß)")
 plt.axis('off')
 plt.show()
