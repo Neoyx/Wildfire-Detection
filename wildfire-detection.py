@@ -3,28 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, floor
 from dataclasses import dataclass
+import images
 import cv2
-
-img_path = "2025_Flin_Flon"
-img_name = "T13UFA_20250602T175931"
-
-# Pfade zu den jp2-Dateien (Infrarot)
-b12_path = f"images/{img_path}/infrared/{img_name}_B12_20m.jp2"
-b11_path = f"images/{img_path}/infrared/{img_name}_B11_20m.jp2"
-b8a_path = f"images/{img_path}/infrared/{img_name}_B8a_20m.jp2"
-
-# Pfade zu den jp2-Dateien (True-Color)
-b04_path = f"images/{img_path}/color/{img_name}_B04_20m.jp2"
-b03_path = f"images/{img_path}/color/{img_name}_B03_20m.jp2"
-b02_path = f"images/{img_path}/color/{img_name}_B02_20m.jp2"
-
-# cm_path = f"images/{img_path}/MSK_CLDPRB_20m.jp2"
 
 # Lade die Bänder (alle 20m → gleiche Form)
 def load_band(path):
     with rasterio.open(path) as src:
         band = src.read(1).astype(float)
     return band
+
+b12_path, b11_path, b8a_path, b04_path, b03_path, b02_path, cm_path = images.get_band_paths(images.Flin_Flon)
 
 b12 = load_band(b12_path)
 b11 = load_band(b11_path)
