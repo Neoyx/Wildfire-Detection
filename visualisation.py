@@ -10,12 +10,11 @@ class Subplot:
 
 
 def plot(subplots_data, plot_sync_zoom: bool = True):
-
     num_rows = int(np.ceil(len(subplots_data) / 3))
     _, axes = plt.subplots(num_rows, 3, figsize=(16, 8), sharex=plot_sync_zoom, sharey=plot_sync_zoom)
 
     # plt.get_current_fig_manager().full_screen_toggle() # Fullscreen mode
-    plt.get_current_fig_manager().window.state('zoomed') # WARNING: This may not work in all environments
+    # plt.get_current_fig_manager().window.state('zoomed') # WARNING: This may not work in all environments
 
     axes = axes.flatten()
 

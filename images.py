@@ -18,7 +18,7 @@ Park_Fire_1 = Image(
 
 Park_Fire_2 = Image(
     directory="2024_Park_Fire/img2",
-    file_name_prefix="T10TEK_20240725T185921"
+    file_name_prefix="T10TFK_20240727T184919"
 )
 
 Porto_Wildfire_Portugal = Image(

@@ -2,6 +2,7 @@ import numpy as np
 from sequential_regioning import sequential_regioning
 import visualisation
 from visualisation import Subplot
+import matplotlib.pyplot as plt
 import time
 import images
 from bands import get_normalized_bands
@@ -15,8 +16,7 @@ def stack_img(band_1, band_2, band_3):
     return img
 
 
-def main(img: images.Image, plot_sync_zoom: bool = True):
-    time_start = time.time()
+def main(img: images.Image, plot_sync_zoom: bool = True, burned_area: bool = False,):
 
     b12_norm, b11_norm, b8a_norm, b04_norm, b03_norm, b02_norm, cloud_mask_norm = get_normalized_bands(img)
 
@@ -26,69 +26,118 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
     color = stack_img(b04_norm, b03_norm, b02_norm)
 
-    # Detektion des Feuers
-    outer_fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # & (cloud_mask == 0) # low b11 and b8a (G, B) to exclude clouds and vegetation
-    outer_fire_mask = outer_fire_mask.astype(np.uint16)
+    if not burned_area:
+        time_start = time.time()
+        # Detektion des Feuers
+        outer_fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) # & (cloud_mask == 0) # low b11 and b8a (G, B) to exclude clouds and vegetation
+        outer_fire_mask = outer_fire_mask.astype(np.uint16)
 
-    # dilate the fire to enlarge the detection radius for the core fire
-    fire_closing = np.ones((135, 135), np.uint16)
-    #dilated_fire = cv2.dilate(outer_fire_mask.astype(np.uint8), filter, iterations=5)
-    closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
+        # dilate the fire to enlarge the detection radius for the core fire
+        fire_closing = np.ones((135, 135), np.uint16)
+        #dilated_fire = cv2.dilate(outer_fire_mask.astype(np.uint8), filter, iterations=5)
+        closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
 
-    # search for yellow/white fire-pixels near the red pixels
-    # & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) ==> Alternative zur cloud_mask == 0
-    core_fire_mask = (b12_norm > 0.7) & (b11_norm > 0.7) & (closed_fire_mask == 1) & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) # & (cloud_mask == 0)
-    core_fire_mask = core_fire_mask.astype(np.uint16)
+        # search for yellow/white fire-pixels near the red pixels
+        # & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) ==> Alternative zur cloud_mask == 0
+        core_fire_mask = (b12_norm > 0.7) & (b11_norm > 0.7) & (closed_fire_mask == 1) & (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) # & (cloud_mask == 0)
+        core_fire_mask = core_fire_mask.astype(np.uint16)
 
-    # TODO: Fehldetektierte rot-angestrahlte Wolken herausfiltern
-    # Problem an Anwendung von Cloudmask: Unter den Wolken liegende Feuer werden nicht mehr erkannt
-    # ==> Eventuelle Loesung: Cloud-Closing (siehe fortfolgend)
+        # TODO: Fehldetektierte rot-angestrahlte Wolken herausfiltern
+        # Problem an Anwendung von Cloudmask: Unter den Wolken liegende Feuer werden nicht mehr erkannt
+        # ==> Eventuelle Loesung: Cloud-Closing (siehe fortfolgend)
 
-    # apply another closing to fill the holes created by the cloudmask
-    #cloud_closing = np.ones((5, 5), np.uint8)
-    #closed_core_fire_mask = cv2.morphologyEx(core_fire_mask, cv2.MORPH_CLOSE, cloud_closing)
-    # Problem: Unter Wolken liegende Feuer können NICHT reproduziert werden
+        # apply another closing to fill the holes created by the cloudmask
+        #cloud_closing = np.ones((5, 5), np.uint8)
+        #closed_core_fire_mask = cv2.morphologyEx(core_fire_mask, cv2.MORPH_CLOSE, cloud_closing)
+        # Problem: Unter Wolken liegende Feuer können NICHT reproduziert werden
 
-    # TODO: Groesse der Filtermasken evtl. je nach Groesse des Feuers dynamisch anpassen
+        # TODO: Groesse der Filtermasken evtl. je nach Groesse des Feuers dynamisch anpassen
 
-    outer_fire_indices = np.where(outer_fire_mask)
-    core_fire_indices = np.where(core_fire_mask)
+        outer_fire_indices = np.where(outer_fire_mask)
+        core_fire_indices = np.where(core_fire_mask)
 
-    final_fire_mask = outer_fire_mask | core_fire_mask
+        final_fire_mask = outer_fire_mask | core_fire_mask
 
-    # Markierung des Feuers im Farbbild in rot
-    color_marked = color.copy()
-    color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0]
-    color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0]
+        # Markierung des Feuers im Farbbild in rot
+        color_marked = color.copy()
+        color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0]
+        color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0]
 
-    # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
+        # TODO: rot markierten Feuer-Pixel im Farbbild evtl. durch Dilatation oder andere Filter vergroessern
 
-    kernel = np.ones((7,7),np.uint16)
-    combinedRegion_closed = cv2.morphologyEx(final_fire_mask, cv2.MORPH_CLOSE, kernel)
+        kernel = np.ones((7,7),np.uint16)
+        #combinedRegion_closed = cv2.morphologyEx(final_fire_mask, cv2.MORPH_CLOSE, kernel)
 
-    kernel2 = np.ones((2,2),np.uint16)
-    combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
+        kernel2 = np.ones((2,2),np.uint16)
+        #combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
 
-    labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
+        #labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
 
-    time_end = time.time()
-    print(f"Complete Processing time: {time_end - time_start:.2f} seconds")
+        burn_index1 = infrared[..., 0] - 1.0 * (infrared[..., 1] + infrared[..., 2])  # Emphasize high R, low G/B
+        burn_index2 = b12_norm - (0.3 * b11_norm + 0.3 * b8a_norm)
 
 
-    subplots_data = [
-        Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
-        Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
-        Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
-        Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
-        Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        Subplot("Regionenmarkiertes Feuer", labeled_fire, cmap='gray')
-    ]
-    
-    visualisation.plot(subplots_data, plot_sync_zoom=plot_sync_zoom)
+        # Normalize burn_index to 0–1
+        burn_index1 = np.clip((burn_index1 - burn_index1.min()) / (burn_index1.max() - burn_index1.min()), 0, 1)
+        print(burn_index1)
+        burn_index2 = np.clip((burn_index2 - burn_index2.min()) / (burn_index2.max() - burn_index2.min()), 0, 1)
+        print(burn_index2)
+
+
+        
+        burn_index2[b11_norm < 0.18] = 0 # filtering the water
+        burn_index2 /= b11_norm
+        burn_index2 = 1 / (1 + np.exp(-5 * (burn_index2 - 0.5)))
+        #burn_index2[burn_index2 > 0.4] = 0.5
+            
+        #burn_index2[b11_norm > 0.4] = 0.4
+        
+        #burn_index2[b12_norm < 0.25] = 0.4
+        
+
+        time_end = time.time()
+        print(f"Complete Processing time: {time_end - time_start:.2f} seconds")
+
+
+        subplots_data = [
+            #Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
+            Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
+            #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
+            Subplot("Kombiniertes Feuer (Closed)", burn_index1, cmap='gray'),
+            Subplot("Kombiniertes Feuer (Closed-Open)", burn_index2, cmap='gray'),
+            #Subplot("Regionenmarkiertes Feuer mit Artifical Mask", labeled_fire, cmap='gray')
+        ]
+        
+        visualisation.plot(subplots_data, plot_sync_zoom=plot_sync_zoom)
+    else:
+        # Detektion der Brandfläche
+        burned_area_mask = (b12_norm > 0.25) & (b11_norm < 0.4) & (b8a_norm < 0.4) # & (cloud_mask == 0) # low b11 and b8a (G, B) to exclude clouds and vegetation
+        burned_area_mask = burned_area_mask.astype(np.uint16)
+
+
+        burned_area_indices = np.where(burned_area_mask)
+
+        color_marked_area = color.copy()
+        color_marked_area[burned_area_indices[0], burned_area_indices[1]] = [1, 0, 0]
+
+        subplots_data = [
+            Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked_area),
+            Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
+
+            
+            #Subplot("Aktive Feuer-Pixel (weiß)", infrared),
+            
+            #Subplot("Kombiniertes Feuer (Closed)", combinedRegion_closed, cmap='gray'),
+            #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
+            #Subplot("Regionenmarkiertes Feuer mit Artifical Mask", labeled_fire, cmap='gray')
+            
+        ]
+        visualisation.plot(subplots_data, plot_sync_zoom=plot_sync_zoom)
 
 
 if __name__ == "__main__":
     main(
-        images.Flin_Flon,  # Change to any image from the images module
-        plot_sync_zoom=True  # Set to False to disable synchronized zooming
+        images.Park_Fire_2,  # Change to any image from the images module
+        plot_sync_zoom=True,  # Set to False to disable synchronized zooming
+        burned_area=False
     )
