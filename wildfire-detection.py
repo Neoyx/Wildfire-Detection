@@ -73,13 +73,12 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     kernel2 = np.ones((2,2),np.uint16)
     combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
 
-    #labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
+    # labeled_fire, amount_regions = sequential_regioning(combinedRegion_opened, n8=True)
 
     #burn_index2 = b12_norm - 0.1 * (b11_norm + b8a_norm) # TODO: test different weights
     burn_index2 = b12_norm - (0.7 * b11_norm) # b8a bringt nicht viel, da wolken/rauch reflektion brandfäche verdeckt
 
     # Normalize burn_index to 0–1
-    burn_index1 = np.clip((burn_index1 - burn_index1.min()) / (burn_index1.max() - burn_index1.min()), 0, 1)
     burn_index2 = np.clip((burn_index2 - burn_index2.min()) / (burn_index2.max() - burn_index2.min()), 0, 1)
 
     burn_index2[b11_norm < 0.2] = burn_index2.mean() # filtering the water
@@ -94,10 +93,10 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
     # Optional threshold
     binary_edges = edges > 0.1  # or another threshold
-    cleaned_edges = morphology.remove_small_objects(binary_edges, min_size=1)
+    cleaned_edges = morphology.remove_small_objects(binary_edges, min_size=300)
 
     #edges2 = canny(burn_index2, sigma=2.0)
-    edges2 = canny(burn_index2, sigma=2.0, low_threshold=0.01, high_threshold=0.1) 
+    edges2 = canny(burn_index2, sigma=2.0, low_threshold=0.001, high_threshold=0.08) 
     dilated_edges = cv2.morphologyEx(edges2.astype(np.uint8), cv2.MORPH_DILATE, kernel)
 
     time_end = time.time()
@@ -110,7 +109,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
         #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        #Subplot("Regionenmarkiertes Feuer", labeled_fire, cmap='gray'),
+        # Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
         Subplot("Verbrannte Flaeche (Bänder)", burn_index2, cmap='gray'),
         Subplot("Kanten (Sobel)", cleaned_edges, cmap='gray'),
         Subplot("Kanten (Canny)", dilated_edges, cmap='gray')
@@ -121,6 +120,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Montreal_Lake,  # Change to any image from the images module
+        images.Park_Fire_2,  # Change to any image from the images module
         plot_sync_zoom=True  # Set to False to disable synchronized zooming
     )
