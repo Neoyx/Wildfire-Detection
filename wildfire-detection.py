@@ -79,7 +79,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     burn_index2 = b12_norm - (0.7 * b11_norm) # b8a bringt nicht viel, da wolken/rauch reflektion brandfäche verdeckt
 
     # Normalize burn_index to 0–1
-    burn_index1 = np.clip((burn_index1 - burn_index1.min()) / (burn_index1.max() - burn_index1.min()), 0, 1)
     burn_index2 = np.clip((burn_index2 - burn_index2.min()) / (burn_index2.max() - burn_index2.min()), 0, 1)
 
     burn_index2[b11_norm < 0.2] = burn_index2.mean() # filtering the water
@@ -94,10 +93,10 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
     # Optional threshold
     binary_edges = edges > 0.1  # or another threshold
-    cleaned_edges = morphology.remove_small_objects(binary_edges, min_size=1)
+    cleaned_edges = morphology.remove_small_objects(binary_edges, min_size=300)
 
     #edges2 = canny(burn_index2, sigma=2.0)
-    edges2 = canny(burn_index2, sigma=2.0, low_threshold=0.01, high_threshold=0.1) 
+    edges2 = canny(burn_index2, sigma=2.0, low_threshold=0.001, high_threshold=0.08) 
     dilated_edges = cv2.morphologyEx(edges2.astype(np.uint8), cv2.MORPH_DILATE, kernel)
 
     time_end = time.time()
@@ -121,6 +120,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Montreal_Lake,  # Change to any image from the images module
+        images.Park_Fire_2,  # Change to any image from the images module
         plot_sync_zoom=True  # Set to False to disable synchronized zooming
     )
