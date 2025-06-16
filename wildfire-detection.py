@@ -6,6 +6,10 @@ import time
 import images
 from bands import get_normalized_bands
 import cv2
+from scipy.ndimage import gaussian_filter, laplace
+from skimage.feature import canny
+from skimage import measure, morphology
+from skimage.exposure import rescale_intensity
 
 # Stacking und Normalisierung des Farbbildes
 def stack_img(band_1, band_2, band_3):
@@ -69,7 +73,32 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     kernel2 = np.ones((2,2),np.uint16)
     combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
 
-    labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
+    #labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
+
+    #burn_index2 = b12_norm - 0.1 * (b11_norm + b8a_norm) # TODO: test different weights
+    burn_index2 = b12_norm - (0.7 * b11_norm) # b8a bringt nicht viel, da wolken/rauch reflektion brandfäche verdeckt
+
+    # Normalize burn_index to 0–1
+    burn_index1 = np.clip((burn_index1 - burn_index1.min()) / (burn_index1.max() - burn_index1.min()), 0, 1)
+    burn_index2 = np.clip((burn_index2 - burn_index2.min()) / (burn_index2.max() - burn_index2.min()), 0, 1)
+
+    burn_index2[b11_norm < 0.2] = burn_index2.mean() # filtering the water
+    burn_index2 = burn_index2**0.2 # gamma correction
+
+    smoothed = gaussian_filter(burn_index2, sigma=3.0)  # try 1.0 to 3.0
+    sobelx = cv2.Sobel(smoothed, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(smoothed, cv2.CV_64F, 0, 1, ksize=3)
+
+    edges = np.hypot(sobelx, sobely)
+    edges = cv2.normalize(edges, None, 0, 1, cv2.NORM_MINMAX)
+
+    # Optional threshold
+    binary_edges = edges > 0.1  # or another threshold
+    cleaned_edges = morphology.remove_small_objects(binary_edges, min_size=1)
+
+    #edges2 = canny(burn_index2, sigma=2.0)
+    edges2 = canny(burn_index2, sigma=2.0, low_threshold=0.01, high_threshold=0.1) 
+    dilated_edges = cv2.morphologyEx(edges2.astype(np.uint8), cv2.MORPH_DILATE, kernel)
 
     time_end = time.time()
     print(f"Complete Processing time: {time_end - time_start:.2f} seconds")
@@ -78,10 +107,13 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     subplots_data = [
         Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
         Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
-        Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
-        Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
-        Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        Subplot("Regionenmarkiertes Feuer", labeled_fire, cmap='gray')
+        #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
+        #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
+        #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
+        #Subplot("Regionenmarkiertes Feuer", labeled_fire, cmap='gray'),
+        Subplot("Verbrannte Flaeche (Bänder)", burn_index2, cmap='gray'),
+        Subplot("Kanten (Sobel)", cleaned_edges, cmap='gray'),
+        Subplot("Kanten (Canny)", dilated_edges, cmap='gray')
     ]
     
     visualisation.plot(subplots_data, plot_sync_zoom=plot_sync_zoom)
@@ -89,6 +121,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Flin_Flon,  # Change to any image from the images module
+        images.Montreal_Lake,  # Change to any image from the images module
         plot_sync_zoom=True  # Set to False to disable synchronized zooming
     )
