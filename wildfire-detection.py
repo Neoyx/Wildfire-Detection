@@ -69,7 +69,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     kernel2 = np.ones((2,2),np.uint16)
     combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
 
-    labeled_fire = sequential_regioning(combinedRegion_opened, n8=True)
+    labeled_fire, found_regions = sequential_regioning(combinedRegion_opened, n8=True)
 
     time_end = time.time()
     print(f"Complete Processing time: {time_end - time_start:.2f} seconds")
@@ -81,7 +81,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
         Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        Subplot("Regionenmarkiertes Feuer", labeled_fire, cmap='gray')
+        Subplot(f"Regionenmarkiertes Feuer | Regions: {found_regions}", labeled_fire, cmap='gray'),
     ]
     
     visualisation.plot(subplots_data, plot_sync_zoom=plot_sync_zoom)
@@ -89,6 +89,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Flin_Flon,  # Change to any image from the images module
+        img=images.Flin_Flon,  # Change to any image from the images module
         plot_sync_zoom=True  # Set to False to disable synchronized zooming
     )

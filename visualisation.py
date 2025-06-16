@@ -12,10 +12,10 @@ class Subplot:
 def plot(subplots_data, plot_sync_zoom: bool = True):
 
     num_rows = int(np.ceil(len(subplots_data) / 3))
-    _, axes = plt.subplots(num_rows, 3, figsize=(16, 8), sharex=plot_sync_zoom, sharey=plot_sync_zoom)
+    _, axes = plt.subplots(num_rows, 3, figsize=(16, 8), sharex=plot_sync_zoom, sharey=plot_sync_zoom, constrained_layout=True)
 
     # plt.get_current_fig_manager().full_screen_toggle() # Fullscreen mode
-    plt.get_current_fig_manager().window.state('zoomed') # WARNING: This may not work in all environments
+    # plt.get_current_fig_manager().window.state('zoomed') # WARNING: This may not work in all environments
 
     axes = axes.flatten()
 
@@ -29,5 +29,4 @@ def plot(subplots_data, plot_sync_zoom: bool = True):
     for i in range(len(subplots_data), len(axes)):
         axes[i].axis('off')
 
-    plt.tight_layout()
     plt.show()

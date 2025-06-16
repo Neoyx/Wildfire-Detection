@@ -73,4 +73,4 @@ def sequential_regioning(img, n8, random_seed = 20):
                         break
     time_end = time.time()
     print(f"Time taken for sequential regioning: {time_end - time_start:.2f} seconds\nRegions found: {len(R)}")
-    return out_img
+    return out_img, len(R)
