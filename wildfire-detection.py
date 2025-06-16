@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter, laplace
 from skimage.feature import canny
 from skimage import measure, morphology
 from skimage.exposure import rescale_intensity
+import sequential_regioning_cpp
 
 # Stacking und Normalisierung des Farbbildes
 def stack_img(band_1, band_2, band_3):
@@ -73,7 +74,8 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     kernel2 = np.ones((2,2),np.uint16)
     combinedRegion_opened = cv2.morphologyEx(combinedRegion_closed, cv2.MORPH_OPEN, kernel2)
 
-    # labeled_fire, amount_regions = sequential_regioning(combinedRegion_opened, n8=True)
+    # labeled_fire, amount_regions = sequential_regioning(combinedRegion_opened, n8=True) # using the pure Python implementation
+    labeled_fire, amount_regions  = sequential_regioning_cpp.run(combinedRegion_opened, n8=True) # using the C++ implementation for performance
 
     #burn_index2 = b12_norm - 0.1 * (b11_norm + b8a_norm) # TODO: test different weights
     burn_index2 = b12_norm - (0.7 * b11_norm) # b8a bringt nicht viel, da wolken/rauch reflektion brandfäche verdeckt
@@ -109,7 +111,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
         #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        # Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
+        Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
         Subplot("Verbrannte Flaeche (Bänder)", burn_index2, cmap='gray'),
         Subplot("Kanten (Sobel)", cleaned_edges, cmap='gray'),
         Subplot("Kanten (Canny)", dilated_edges, cmap='gray')
@@ -120,6 +122,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Park_Fire_2,  # Change to any image from the images module
+        images.Flin_Flon,  # Change to any image from the images module
         plot_sync_zoom=True  # Set to False to disable synchronized zooming
     )

@@ -4,7 +4,7 @@ import time
 
 
 def sequential_regioning(img, n8, random_seed = 20):
-    time_start = time.time()
+    time_start = time.time_ns()
     img = img.copy()
     (height, width) = img.shape
     out_img = np.zeros((height, width, 3), dtype=np.uint16)
@@ -71,6 +71,9 @@ def sequential_regioning(img, n8, random_seed = 20):
                         out_img[v, u] = label_to_color[base_label]
                         #img[v, u] = min(s)
                         break
-    time_end = time.time()
-    print(f"Time taken for sequential regioning: {time_end - time_start:.2f} seconds\nRegions found: {len(R)}")
+    time_end = time.time_ns()
+    elapsed_ms = (time_end - time_start) // 1_000_000  # Convert to milliseconds
+
+    print( "sequential regioning:     Regions found:", len(R))
+    print(f"sequential regioning:     Elapsed time: {elapsed_ms} milliseconds")
     return out_img, len(R)

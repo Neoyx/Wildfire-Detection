@@ -1,2 +1,5 @@
 .venv
 __pycache__
+.vscode
+build
+sequential_regioning_cpp.egg-info
