@@ -3,17 +3,19 @@ import numpy as np
 import images
 import os
 
-# Lade die Bänder (alle 20m → gleiche Form)
 def load_band(path: str) -> np.ndarray:
     with rasterio.open(path) as src:
         band = src.read(1).astype(float)
     return band
 
-# Normalisiere Bänder auf Wertebereich zwischen 0 und 1
+# Normalize bands between 0 and 1
 def normalize_band(band: np.ndarray) -> np.ndarray:
     band = band.astype(float)
-    band /= 10000.0  # Sentinel-2 typische Skalierung
-    band = np.clip(band, 0, 1)
+    band /= 10000.0  # Sentinel-2 typical scaling
+    band_min = np.min(band)
+    band_max = np.max(band)
+    if band_max - band_min > 0:
+        band = (band - band_min) / (band_max - band_min)
     return band
 
 def get_normalized_bands(img: images.Image):
