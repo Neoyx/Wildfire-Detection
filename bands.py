@@ -12,7 +12,10 @@ def load_band(path: str) -> np.ndarray:
 def normalize_band(band: np.ndarray) -> np.ndarray:
     band = band.astype(float)
     band /= 10000.0  # Sentinel-2 typical scaling
-    band = np.clip(band, 0, 1)
+    band_min = np.min(band)
+    band_max = np.max(band)
+    if band_max - band_min > 0:
+        band = (band - band_min) / (band_max - band_min)
     return band
 
 def get_normalized_bands(img: images.Image):
