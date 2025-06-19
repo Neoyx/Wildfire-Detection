@@ -17,27 +17,30 @@ def sequential_regioning(img, n8, random_seed = 20):
             if img[v, u] == 1:
                 neighbors = []
 
-                if u > 0 and img[v, u - 1] > 1: # Nachbar links
+                if u > 0 and img[v, u - 1] > 1: # left neighbor
                     neighbors.append(img[v, u - 1])
 
-                if v > 0 and img[v - 1, u] > 1: # Nachbar oben
+                if v > 0 and img[v - 1, u] > 1: # upper neighbor
                     neighbors.append(img[v - 1, u])
                 
                 if n8:
-                    if u > 0 and v > 0 and img[v - 1, u - 1] > 1: # Nachbar oben links
+                    if u > 0 and v > 0 and img[v - 1, u - 1] > 1: # upper left neighbor
                         neighbors.append(img[v - 1, u - 1])
-                    if u < width - 1 and v > 0 and img[v - 1, u + 1] > 1: # Nachbar oben rechts
+                    if u < width - 1 and v > 0 and img[v - 1, u + 1] > 1: # upper right neighbor
                         neighbors.append(img[v - 1, u + 1])    
                 
                 unique_neigbors = list(set(neighbors))
-                if len(unique_neigbors) == 0: # Alle Nachbarn sind Hintergrundpixel
+
+                # if there are no neighbors, we assign a new label
+                if len(unique_neigbors) == 0:
                     img[v, u] = m
                     m += 1
-                elif len(unique_neigbors) == 1: # Genau ein Nachbar hat Labelwert größer 1
+                # just one neighbor, we can assign the same label
+                elif len(unique_neigbors) == 1:
                     img[v, u] = unique_neigbors[0]
-                else: # Mehrere Nachbarnn haben Labelwert größer 1
-                    # Nimm einfach den ersten als neuen Label
-                    img[v, u] = unique_neigbors[0]
+                # more than one neighbor, we have a collision
+                else:
+                    img[v, u] = unique_neigbors[0] # just assign the first neighbor's label
                     k = unique_neigbors[0]
                     for n1 in unique_neigbors:
                         if n1 != k:
@@ -45,22 +48,24 @@ def sequential_regioning(img, n8, random_seed = 20):
 
     # Pass 2 – Resolve Label Collisions  
     L = range(2, m)
-    R = [{i} for i in L]
+    R = [{i} for i in L] # R is a list of sets, each set contains the labels of a region
     for (a, b) in collisions:
         for s in R:
             if a in s:
-                r_a = s # der set, der gerade a enthält
+                r_a = s # the set that currently contains a
             if b in s:
-                r_b = s # der set, der gerade b enthält
+                r_b = s # the set that currently contains b
         if r_a != r_b:
             r_a.update(r_b)
-            R.remove(r_b) # WARN: vielleicht nur leer machen
+            R.remove(r_b)
 
+    # Randomly assign colors to the base labels
     random.seed(random_seed)
     label_to_color = {}
     for s in R:
         base_label = min(s)
         label_to_color[base_label] = [random.randint(0, 255) for _ in range(3)]
+
     # Pass 3 - Relabel the Image    
     for v in range(height):
         for u in range(width):
@@ -69,8 +74,8 @@ def sequential_regioning(img, n8, random_seed = 20):
                     if img[v, u] in s:
                         base_label = min(s)
                         out_img[v, u] = label_to_color[base_label]
-                        #img[v, u] = min(s)
                         break
+
     time_end = time.time_ns()
     elapsed_ms = (time_end - time_start) // 1_000_000  # Convert to milliseconds
 
