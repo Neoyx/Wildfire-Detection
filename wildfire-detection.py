@@ -20,11 +20,22 @@ def stack_img(band_1, band_2, band_3):
     return img
 
 
-def main(img: images.Image, plot_sync_zoom: bool = True):
+def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True, down_scale_factor: int = 2):
     time_start = time.time()
 
     # Loading the bands
     b12_norm, b11_norm, b8a_norm, b04_norm, b03_norm, b02_norm, cm_norm = get_normalized_bands(img)
+
+    
+    # Downscaling the images if required
+    if down_scale:
+        f = down_scale_factor
+        b12_norm = cv2.resize(b12_norm, (b12_norm.shape[1] // f, b12_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
+        b11_norm = cv2.resize(b11_norm, (b11_norm.shape[1] // f, b11_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
+        b8a_norm = cv2.resize(b8a_norm, (b8a_norm.shape[1] // f, b8a_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
+        b04_norm = cv2.resize(b04_norm, (b04_norm.shape[1] // f, b04_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
+        b03_norm = cv2.resize(b03_norm, (b03_norm.shape[1] // f, b03_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
+        b02_norm = cv2.resize(b02_norm, (b02_norm.shape[1] // f, b02_norm.shape[0] // f), interpolation=cv2.INTER_LINEAR)
 
     # Stacking the bands
     infrared = stack_img(b12_norm, b11_norm, b8a_norm)
@@ -63,6 +74,11 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     color_marked = color.copy()
     color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0] # Mark the outer fire in red
     color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0] # Mark the core fire in yellow
+
+    def update_img(orignal_band, value, base_img = color, col = [1, 0, 0]):
+        band = base_img.copy()
+        band[orignal_band > value] = col
+        return band
 
     # Combine the fire masks
     final_fire_mask = outer_fire_mask | core_fire_mask
@@ -137,19 +153,22 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
     subplots_data = [
         Subplot("Farbbild (B04, B03, B02 – 20m)", color),
         Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
-        Subplot("Farbbild (makiert - groß) (B04, B03, B02 – 20m)", color_marked_dilated),
+        # Subplot("Farbbild (makiert - groß) (B04, B03, B02 – 20m)", color_marked_dilated),
         Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
-        Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
+        #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
+        #Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
         #Subplot("Verbrannte Fläche", burn_index, cmap='gray'),
-        Subplot("Verbrannte Fläche (Sobel)", binary_edges_sobel, cmap='gray'),
-        Subplot("Verbrannte Fläche (Canny)", dilated_edges, cmap='gray'),
-        Subplot("Verbrannte Fläche (kombiniert)", combined_edges_opened, cmap='gray'),
-        #Subplot("b12_norm", b12_norm, cmap='hot'),
-        #Subplot("b11_norm", b11_norm, cmap='hot'),
-        #Subplot("b8a_norm", b8a_norm, cmap='hot'),
+        # Subplot("Verbrannte Fläche (Sobel)", binary_edges_sobel, cmap='gray'),
+        # Subplot("Verbrannte Fläche (Canny)", dilated_edges, cmap='gray'),
+        # Subplot("Verbrannte Fläche (kombiniert)", combined_edges_opened, cmap='gray'),
+        # Subplot("b12_norm", b12_norm, cmap='hot'),
+        # Subplot("b11_norm", b11_norm, cmap='hot'),
+        # Subplot("b8a_norm", b8a_norm, cmap='hot'),
+        Subplot("b12_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b12_norm, x, infrared)),
+        Subplot("b11_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b11_norm, x, infrared)),
+        Subplot("b8a_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b8a_norm, x, infrared)),
     ]
 
     # subplots_data_2 = [
@@ -166,6 +185,8 @@ def main(img: images.Image, plot_sync_zoom: bool = True):
 
 if __name__ == "__main__":
     main(
-        images.Park_Fire_1,  # Change to any image from the images module
-        plot_sync_zoom=True  # Set to False to disable synchronized zooming
+        images.Flin_Flon,  # Change to any image from the images module
+        plot_sync_zoom=True,  # Set to False to disable synchronized zooming
+        down_scale=True,  # Set to False to disable downscaling of the images
+        down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
     )
