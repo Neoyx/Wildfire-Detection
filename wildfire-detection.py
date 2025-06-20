@@ -46,7 +46,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # Low b11 and b8a (G, B) to exclude clouds and vegetation
     #outer_fire_mask = (b12_norm > 0.5) & (b11_norm < 0.4) & (b8a_norm < 0.5)
-    outer_fire_mask = (b12_norm > 0.6) & (b11_norm < 0.5) & (b8a_norm < 0.5) 
+    outer_fire_mask = (b12_norm > 0.3) & (b11_norm < 0.4) & (b8a_norm < 0.4)
     outer_fire_mask = outer_fire_mask.astype(np.uint16)
 
     # TODO: Suppression mode ==> Run filter above outer fire mask and check if it is a single pixel, then discard
@@ -56,8 +56,8 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
 
     # Search for yellow/white fire pixels near the red pixels
-    core_fire = (b12_norm > 0.7) & (b11_norm > 0.5) & (closed_fire_mask == 1) # searching for yellow fire pixels
-    cloud_filter = (b04_norm < 0.8) & (b03_norm < 0.8) & (b02_norm < 0.8) # filtering the clouds
+    core_fire = (b12_norm > 0.5) & (b11_norm > 0.2) & (closed_fire_mask == 1) # searching for yellow fire pixels
+    cloud_filter = (b04_norm < 0.6) & (b03_norm < 0.6) & (b02_norm < 0.6) # filtering the clouds
     core_fire_mask = core_fire & cloud_filter
     core_fire_mask = core_fire_mask.astype(np.uint16)
 
@@ -75,9 +75,12 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0] # Mark the outer fire in red
     color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0] # Mark the core fire in yellow
 
-    def update_img(orignal_band, value, base_img = color, col = [1, 0, 0]):
+    def update_img(orignal_band, value, greater, base_img = color, col = [1, 0, 0]):
         band = base_img.copy()
-        band[orignal_band > value] = col
+        if greater:
+            band[orignal_band > value] = col
+        else:
+            band[orignal_band < value] = col
         return band
 
     # Combine the fire masks
@@ -166,9 +169,9 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
         # Subplot("b12_norm", b12_norm, cmap='hot'),
         # Subplot("b11_norm", b11_norm, cmap='hot'),
         # Subplot("b8a_norm", b8a_norm, cmap='hot'),
-        Subplot("b12_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b12_norm, x, infrared)),
-        Subplot("b11_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b11_norm, x, infrared)),
-        Subplot("b8a_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b8a_norm, x, infrared)),
+        Subplot("b12_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b12_norm, x, True, infrared)),
+        Subplot("b11_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b11_norm, x, False, infrared)),
+        Subplot("b8a_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b8a_norm, x, False, infrared)),
     ]
 
     # subplots_data_2 = [
@@ -185,7 +188,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Flin_Flon,  # Change to any image from the images module
+        images.Park_Fire_2,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
         down_scale=True,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
