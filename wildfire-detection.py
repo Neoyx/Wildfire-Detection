@@ -1,7 +1,7 @@
 import numpy as np
 from sequential_regioning import sequential_regioning
 import visualisation
-from visualisation import Subplot
+from visualisation import Subplot, SliderConfig
 import time
 import images
 from bands import get_normalized_bands
@@ -19,6 +19,14 @@ def stack_img(band_1, band_2, band_3):
     img = np.clip(img, 0, 1) # Normalize
     return img
 
+def update_img(orignal_band, value, base_img, col = [0, 1, 0], dilate_size=50):
+    mask = orignal_band > value
+    if dilate_size > 0:
+        area_dilatation = np.ones((dilate_size, dilate_size), np.uint16)
+        mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_DILATE, area_dilatation)
+    band = base_img.copy()
+    band[mask > 0] = col
+    return band
 
 def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True, down_scale_factor: int = 2):
     time_start = time.time()
@@ -75,10 +83,25 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0] # Mark the outer fire in red
     color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0] # Mark the core fire in yellow
 
-    def update_img(orignal_band, value, base_img = color, col = [1, 0, 0]):
-        band = base_img.copy()
-        band[orignal_band > value] = col
-        return band
+    def update_ultimate_threshoold_finder(b12_value, b11_value, b8a_value, base_image):
+        image = base_image.copy()
+
+        red = np.array([1.0, 0.0, 0.0])
+        green = np.array([0.0, 1.0, 0.0])
+        blue = np.array([0.0, 0.0, 1.0])
+
+        mask_b12 = b12_norm > b12_value
+        mask_b11 = b11_norm > b11_value
+        mask_b8a = b8a_norm > b8a_value
+
+        image[mask_b12] = [0, 0, 0]
+        image[mask_b11] = [0, 0, 0]
+        image[mask_b8a] = [0, 0, 0]
+
+        image[mask_b12] = image[mask_b12] + red
+        image[mask_b11] = image[mask_b11] + green
+        image[mask_b8a] = image[mask_b8a] + blue
+        return image
 
     # Combine the fire masks
     final_fire_mask = outer_fire_mask | core_fire_mask
@@ -151,10 +174,10 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 
     subplots_data = [
-        Subplot("Farbbild (B04, B03, B02 – 20m)", color),
-        Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
+        # Subplot("Farbbild (B04, B03, B02 – 20m)", color),
+        # Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
         # Subplot("Farbbild (makiert - groß) (B04, B03, B02 – 20m)", color_marked_dilated),
-        Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
+        # Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
         #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
@@ -166,9 +189,34 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
         # Subplot("b12_norm", b12_norm, cmap='hot'),
         # Subplot("b11_norm", b11_norm, cmap='hot'),
         # Subplot("b8a_norm", b8a_norm, cmap='hot'),
-        Subplot("b12_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b12_norm, x, infrared)),
-        Subplot("b11_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b11_norm, x, infrared)),
-        Subplot("b8a_norm (markiert)", color, slider_initial_value=0.5, slider_update_function=lambda x: update_img(b8a_norm, x, infrared)),
+        Subplot(
+            "b12_norm (markiert)",
+            infrared,
+            slider_configs=[SliderConfig(initial_value=0.5)],
+            slider_update_function=lambda x: update_img(b12_norm, x[0], base_img=infrared, col=[0, 1, 0], dilate_size=0)
+        ),
+        Subplot(
+            "b11_norm (markiert)",
+            infrared,
+            slider_configs=[SliderConfig(initial_value=0.5)],
+            slider_update_function=lambda x: update_img(b11_norm, x[0], base_img=infrared, col=[0, 1, 0])
+        ),
+        Subplot(
+            "b8a_norm (markiert)",
+            infrared,
+            slider_configs=[SliderConfig(initial_value=0.5)],
+            slider_update_function=lambda x: update_img(b8a_norm, x[0], base_img=infrared, col=[0, 1, 0])
+        ),
+        Subplot(
+            "ultimate threshold finder",
+            infrared,
+            slider_configs= [
+                SliderConfig(initial_value=0.5, label="B12 Red"),
+                SliderConfig(initial_value=0.5, label="B11 Green"),
+                SliderConfig(initial_value=0.5, label="B8A Blue")
+            ],
+            slider_update_function=lambda x: update_ultimate_threshoold_finder(*x, base_image=infrared)
+        ),
     ]
 
     # subplots_data_2 = [
