@@ -4,7 +4,7 @@ import visualisation
 from visualisation import Subplot, SliderConfig
 import time
 import images
-from bands import get_normalized_bands
+from bands import get_bands, normalize_band
 import cv2
 from scipy.ndimage import gaussian_filter, laplace
 from skimage.feature import canny
@@ -32,8 +32,25 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     time_start = time.time()
 
     # Loading the bands
-    b12_norm, b11_norm, b8a_norm, b04_norm, b03_norm, b02_norm, cm_norm = get_normalized_bands(img)
+    b12, b11, b8a, b04, b03, b02, cm = get_bands(img)
 
+    # Getting the max value for scaling
+    b12_max = b12.max()
+    b11_max = b11.max()
+    b8a_max = b8a.max()
+    b04_max = b04.max()
+    b03_max = b03.max()
+    b02_max = b02.max()
+
+    print(b12_max, b11_max, b8a_max, b04_max, b03_max, b02_max)
+
+    # Normalizing bands
+    b12_norm = normalize_band(b12)
+    b11_norm = normalize_band(b11)
+    b8a_norm = normalize_band(b8a)
+    b04_norm = normalize_band(b04)
+    b03_norm = normalize_band(b03)
+    b02_norm = normalize_band(b02)
     
     # Downscaling the images if required
     if down_scale:
@@ -54,7 +71,32 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # Low b11 and b8a (G, B) to exclude clouds and vegetation
     #outer_fire_mask = (b12_norm > 0.5) & (b11_norm < 0.4) & (b8a_norm < 0.5)
-    outer_fire_mask = (b12_norm > 0.3) & (b11_norm < 0.4) & (b8a_norm < 0.4)
+    # Smoke indicator: average brightness in visible spectrum
+    smoke_indicator = (b02_norm + b03_norm + b04_norm) / 3.0  # range ~0 to 1
+    #smoke_raw = (b02_norm + b03_norm + b04_norm) / 3.0
+    #cloud_indicator = b8a_norm  # or try b10_norm if available
+
+    # Penalize smoke indicator in bright NIR (likely clouds)
+    #smoke_indicator = smoke_raw - 0.5 * cloud_indicator
+    #smoke_indicator = np.clip(smoke_indicator, 0, 1)
+    # Optional: clip smoke indicator to avoid extreme values
+    #smoke_indicator = np.clip(smoke_indicator, 0.1, 0.9)
+
+    # Dynamic threshold: higher smoke → lower threshold
+    # Formula: b12_thresh = a - b * smoke_indicator
+    # Example: a=0.55, b=0.3 → threshold ranges from ~0.25 to 0.55    
+    
+    b12_dynamic_thresh = 0.6 - smoke_indicator**1.5
+    b12_dynamic_thresh = np.maximum(b12_dynamic_thresh, 0.1)
+    b12_t_max = b12_dynamic_thresh.max()
+    b12_t_min = b12_dynamic_thresh.min()
+    print(b12_t_max)
+    print(b12_t_min)
+
+    b11_dynamic_thresh = 0.2 + 0.3 * b12_norm # b11 threshold should be higher the hotter the fire is
+    
+    outer_fire_mask = (b12_norm > (0.6 / b12_max)) & (b11_norm < (b11_dynamic_thresh / b11_max)) & (b8a_norm < (0.5 / b8a_max))
+    #outer_fire_mask = (b12_norm > (b12_dynamic_thresh)) & (b11_norm < (0.4 / b11_max)) & (b8a_norm < (0.4 / b8a_max))
     outer_fire_mask = outer_fire_mask.astype(np.uint16)
 
     # TODO: Suppression mode ==> Run filter above outer fire mask and check if it is a single pixel, then discard
@@ -64,8 +106,8 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     closed_fire_mask = cv2.morphologyEx(outer_fire_mask, cv2.MORPH_CLOSE, fire_closing)
 
     # Search for yellow/white fire pixels near the red pixels
-    core_fire = (b12_norm > 0.5) & (b11_norm > 0.2) & (closed_fire_mask == 1) # searching for yellow fire pixels
-    cloud_filter = (b04_norm < 0.6) & (b03_norm < 0.6) & (b02_norm < 0.6) # filtering the clouds
+    core_fire = (b12_norm > (0.9 / b12_max)) & (b11_norm > (0.8 / b11_max)) & (closed_fire_mask == 1) # searching for yellow fire pixels
+    cloud_filter = (b04_norm < 0.5) & (b03_norm < 0.5) & (b02_norm < 0.5) # filtering the clouds
     core_fire_mask = core_fire & cloud_filter
     core_fire_mask = core_fire_mask.astype(np.uint16)
 
@@ -174,10 +216,10 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 
     subplots_data = [
-        # Subplot("Farbbild (B04, B03, B02 – 20m)", color),
-        # Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
-        # Subplot("Farbbild (makiert - groß) (B04, B03, B02 – 20m)", color_marked_dilated),
-        # Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
+        Subplot("Farbbild (B04, B03, B02 – 20m)", color),
+        Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
+        Subplot("Farbbild (makiert - groß) (B04, B03, B02 – 20m)", color_marked_dilated),
+        Subplot("Infrarotbild (B12, B11, B8A – 20m)", infrared),
         #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
@@ -186,37 +228,37 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
         # Subplot("Verbrannte Fläche (Sobel)", binary_edges_sobel, cmap='gray'),
         # Subplot("Verbrannte Fläche (Canny)", dilated_edges, cmap='gray'),
         # Subplot("Verbrannte Fläche (kombiniert)", combined_edges_opened, cmap='gray'),
-        # Subplot("b12_norm", b12_norm, cmap='hot'),
-        # Subplot("b11_norm", b11_norm, cmap='hot'),
-        # Subplot("b8a_norm", b8a_norm, cmap='hot'),
-        Subplot(
-            "b12_norm (markiert)",
-            infrared,
-            slider_configs=[SliderConfig(initial_value=0.5)],
-            slider_update_function=lambda x: update_img(b12_norm, x[0], base_img=infrared, col=[0, 1, 0], dilate_size=0)
-        ),
-        Subplot(
-            "b11_norm (markiert)",
-            infrared,
-            slider_configs=[SliderConfig(initial_value=0.5)],
-            slider_update_function=lambda x: update_img(b11_norm, x[0], base_img=infrared, col=[0, 1, 0])
-        ),
-        Subplot(
-            "b8a_norm (markiert)",
-            infrared,
-            slider_configs=[SliderConfig(initial_value=0.5)],
-            slider_update_function=lambda x: update_img(b8a_norm, x[0], base_img=infrared, col=[0, 1, 0])
-        ),
-        Subplot(
-            "ultimate threshold finder",
-            infrared,
-            slider_configs= [
-                SliderConfig(initial_value=0.5, label="B12 Red"),
-                SliderConfig(initial_value=0.5, label="B11 Green"),
-                SliderConfig(initial_value=0.5, label="B8A Blue")
-            ],
-            slider_update_function=lambda x: update_ultimate_threshoold_finder(*x, base_image=infrared)
-        ),
+        #Subplot("b12_norm", b12_norm, cmap='hot'),
+        #Subplot("b11_norm", b11_norm, cmap='hot'),
+        #Subplot("b8a_norm", b8a_norm, cmap='hot'),
+        # Subplot(
+        #     "b12_norm (markiert)",
+        #     infrared,
+        #     slider_configs=[SliderConfig(initial_value=0.5, range=(0, b12_norm.max()))],
+        #     slider_update_function=lambda x: update_img(b12_norm, x[0], base_img=infrared, col=[0, 1, 0], dilate_size=0)
+        # ),
+        # Subplot(
+        #     "b11_norm (markiert)",
+        #     infrared,
+        #     slider_configs=[SliderConfig(initial_value=0.5, range=(0, b11_norm.max()))],
+        #     slider_update_function=lambda x: update_img(b11_norm, x[0], base_img=infrared, col=[0, 1, 0], dilate_size=0)
+        # ),
+        # Subplot(
+        #     "b8a_norm (markiert)",
+        #     infrared,
+        #     slider_configs=[SliderConfig(initial_value=0.5, range=(0, b8a_norm.max()))],
+        #     slider_update_function=lambda x: update_img(b8a_norm, x[0], base_img=infrared, col=[0, 1, 0], dilate_size=0)
+        # ),
+        # Subplot(
+        #     "ultimate threshold finder",
+        #     infrared,
+        #     slider_configs= [
+        #         SliderConfig(initial_value=0.5, label="B12 Red"),
+        #         SliderConfig(initial_value=0.5, label="B11 Green"),
+        #         SliderConfig(initial_value=0.5, label="B8A Blue")
+        #     ],
+        #     slider_update_function=lambda x: update_ultimate_threshoold_finder(*x, base_image=infrared)
+        # ),
     ]
 
     # subplots_data_2 = [
@@ -233,8 +275,8 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Park_Fire_2,  # Change to any image from the images module
+        images.Cape_City_Mountain_Small_Wildfire,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
-        down_scale=True,  # Set to False to disable downscaling of the images
+        down_scale=False,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
     )
