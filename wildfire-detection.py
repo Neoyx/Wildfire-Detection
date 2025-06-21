@@ -107,7 +107,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # Search for yellow/white fire pixels near the red pixels
     core_fire = (b12_norm > (0.9 / b12_max)) & (b11_norm > (0.8 / b11_max)) & (closed_fire_mask == 1) # searching for yellow fire pixels
-    cloud_filter = (b04_norm < 0.5) & (b03_norm < 0.5) & (b02_norm < 0.5) # filtering the clouds
+    cloud_filter = (b04_norm < (0.7 / b04_max)) & (b03_norm < (0.7 / b03_max)) & (b02_norm < (0.7 / b02_max)) # filtering the clouds
     core_fire_mask = core_fire & cloud_filter
     core_fire_mask = core_fire_mask.astype(np.uint16)
 
@@ -275,7 +275,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Cape_City_Mountain_Small_Wildfire,  # Change to any image from the images module
+        images.Park_Fire_2,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
         down_scale=False,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
