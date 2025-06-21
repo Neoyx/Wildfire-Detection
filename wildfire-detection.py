@@ -170,18 +170,23 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # 3. Detecting the burned area
 
+    # Clip bands to ignore outliers of the fire / clouds
+    b12_clipped = np.clip(b12, 0, 1)
+    b11_clipped = np.clip(b11, 0, 1)
+    b8a_clipped = np.clip(b8a, 0, 1)
+
     # Converting the bands to greyscale by dividing b12 with b11 for brightening the burned area
-    burn_index = b12_norm / (b11_norm + 1e-6) # added constant denominator to avoid dividing by zero
+    burn_index = (b12_clipped) / ((b11_clipped) + 1e-6) # added constant denominator to avoid dividing by zero
 
     # Normalize burn_index to 0–1
     burn_index = (burn_index - burn_index.min()) / (burn_index.max() - burn_index.min() + 1e-6)
 
     # Filtering sharp edges that aren't part of the burned area
-    mean_mask = ((burn_index > 0) & (b11_norm >= 0.2)) # avoid black areas or water for computing the mean
+    mean_mask = (burn_index > 0) & ((b11_clipped) >= 0.2) # avoid black areas or water for computing the mean
     mean = burn_index[mean_mask].mean()
-    burn_index[b11_norm < 0.2] = mean     # filtering water
-    burn_index[b8a_norm > 0.5] = mean     # filtering vegetation
-    burn_index[b11_norm > 0.3] = mean     # filtering bright areas
+    burn_index[(b11_clipped) < 0.2] = mean     # filtering water
+    burn_index[(b8a_clipped) > 0.5] = mean     # filtering vegetation
+    burn_index[(b11_clipped) > 0.3] = mean     # filtering bright areas
 
     # Gamma correction to make the image brighter
     burn_index = burn_index**0.5 
@@ -208,7 +213,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # Computing the size of the burning area
     number_fire_pixels = np.count_nonzero(final_fire_mask)
-    burning_area = 400 * number_fire_pixels / 1000000
+    burning_area = (400 * number_fire_pixels) / 1000000
     print(f"Size of active fire area: {burning_area}km^2")
 
     time_end = time.time()
@@ -223,11 +228,11 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
         #Subplot("Aktive Feuer-Pixel (weiß)", final_fire_mask, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed))", combinedRegion_closed, cmap='gray'),
         #Subplot("Kombiniertes Feuer (Closed-Open)", combinedRegion_opened, cmap='gray'),
-        #Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
-        #Subplot("Verbrannte Fläche", burn_index, cmap='gray'),
-        # Subplot("Verbrannte Fläche (Sobel)", binary_edges_sobel, cmap='gray'),
-        # Subplot("Verbrannte Fläche (Canny)", dilated_edges, cmap='gray'),
-        # Subplot("Verbrannte Fläche (kombiniert)", combined_edges_opened, cmap='gray'),
+        Subplot(f"Regionenmarkiertes Feuer | Regions: {amount_regions}", labeled_fire, cmap='gray'),
+        Subplot("Verbrannte Fläche", burn_index, cmap='gray'),
+        Subplot("Verbrannte Fläche (Sobel)", binary_edges_sobel, cmap='gray'),
+        Subplot("Verbrannte Fläche (Canny)", dilated_edges, cmap='gray'),
+        Subplot("Verbrannte Fläche (kombiniert)", combined_edges_opened, cmap='gray'),
         #Subplot("b12_norm", b12_norm, cmap='hot'),
         #Subplot("b11_norm", b11_norm, cmap='hot'),
         #Subplot("b8a_norm", b8a_norm, cmap='hot'),
@@ -275,7 +280,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Park_Fire_2,  # Change to any image from the images module
+        images.Porto_Wildfire_Portugal,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
         down_scale=False,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
