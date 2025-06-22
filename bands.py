@@ -11,7 +11,6 @@ def load_band(path: str) -> np.ndarray:
 # Normalize bands between 0 and 1
 def normalize_band(band: np.ndarray) -> np.ndarray:
     band = band.astype(float)
-    # band /= 10000.0  
     band_min = np.min(band)
     band_max = np.max(band)
     if band_max - band_min > 0:

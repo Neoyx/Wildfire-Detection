@@ -69,37 +69,11 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
     # 1. Fire-detection
 
+    # b11 threshold should be higher the hotter the fire is
+    b11_dynamic_thresh = 0.2 + 0.3 * b12_norm 
     # Low b11 and b8a (G, B) to exclude clouds and vegetation
-    #outer_fire_mask = (b12_norm > 0.5) & (b11_norm < 0.4) & (b8a_norm < 0.5)
-    # Smoke indicator: average brightness in visible spectrum
-    smoke_indicator = (b02_norm + b03_norm + b04_norm) / 3.0  # range ~0 to 1
-    #smoke_raw = (b02_norm + b03_norm + b04_norm) / 3.0
-    #cloud_indicator = b8a_norm  # or try b10_norm if available
-
-    # Penalize smoke indicator in bright NIR (likely clouds)
-    #smoke_indicator = smoke_raw - 0.5 * cloud_indicator
-    #smoke_indicator = np.clip(smoke_indicator, 0, 1)
-    # Optional: clip smoke indicator to avoid extreme values
-    #smoke_indicator = np.clip(smoke_indicator, 0.1, 0.9)
-
-    # Dynamic threshold: higher smoke → lower threshold
-    # Formula: b12_thresh = a - b * smoke_indicator
-    # Example: a=0.55, b=0.3 → threshold ranges from ~0.25 to 0.55    
-    
-    b12_dynamic_thresh = 0.6 - smoke_indicator**1.5
-    b12_dynamic_thresh = np.maximum(b12_dynamic_thresh, 0.1)
-    b12_t_max = b12_dynamic_thresh.max()
-    b12_t_min = b12_dynamic_thresh.min()
-    print(b12_t_max)
-    print(b12_t_min)
-
-    b11_dynamic_thresh = 0.2 + 0.3 * b12_norm # b11 threshold should be higher the hotter the fire is
-    
     outer_fire_mask = (b12_norm > (0.6 / b12_max)) & (b11_norm < (b11_dynamic_thresh / b11_max)) & (b8a_norm < (0.5 / b8a_max))
-    #outer_fire_mask = (b12_norm > (b12_dynamic_thresh)) & (b11_norm < (0.4 / b11_max)) & (b8a_norm < (0.4 / b8a_max))
     outer_fire_mask = outer_fire_mask.astype(np.uint16)
-
-    # TODO: Suppression mode ==> Run filter above outer fire mask and check if it is a single pixel, then discard
 
     # Dilate the fire to enlarge the detection radius for the core fire
     fire_closing = np.ones((135, 135), np.uint16)
@@ -124,26 +98,6 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     color_marked = color.copy()
     color_marked[outer_fire_indices[0], outer_fire_indices[1]] = [1, 0, 0] # Mark the outer fire in red
     color_marked[core_fire_indices[0], core_fire_indices[1]] = [1, 1, 0] # Mark the core fire in yellow
-
-    def update_ultimate_threshoold_finder(b12_value, b11_value, b8a_value, base_image):
-        image = base_image.copy()
-
-        red = np.array([1.0, 0.0, 0.0])
-        green = np.array([0.0, 1.0, 0.0])
-        blue = np.array([0.0, 0.0, 1.0])
-
-        mask_b12 = b12_norm > b12_value
-        mask_b11 = b11_norm > b11_value
-        mask_b8a = b8a_norm > b8a_value
-
-        image[mask_b12] = [0, 0, 0]
-        image[mask_b11] = [0, 0, 0]
-        image[mask_b8a] = [0, 0, 0]
-
-        image[mask_b12] = image[mask_b12] + red
-        image[mask_b11] = image[mask_b11] + green
-        image[mask_b8a] = image[mask_b8a] + blue
-        return image
 
     # Combine the fire masks
     final_fire_mask = outer_fire_mask | core_fire_mask
@@ -176,7 +130,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     b8a_clipped = np.clip(b8a, 0, 1)
 
     # Converting the bands to greyscale by dividing b12 with b11 for brightening the burned area
-    burn_index = (b12_clipped) / ((b11_clipped) + 1e-6) # added constant denominator to avoid dividing by zero
+    burn_index = b12_clipped / (b11_clipped + 1e-6) # added constant denominator to avoid dividing by zero
 
     # Normalize burn_index to 0–1
     burn_index = (burn_index - burn_index.min()) / (burn_index.max() - burn_index.min() + 1e-6)
@@ -219,7 +173,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
     time_end = time.time()
     print(f"Complete Processing time: {time_end - time_start:.2f} seconds")
 
-
+    # Visualization
     subplots_data = [
         Subplot("Farbbild (B04, B03, B02 – 20m)", color),
         Subplot("Farbbild (makiert) (B04, B03, B02 – 20m)", color_marked),
@@ -280,7 +234,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Montreal_Lake,  # Change to any image from the images module
+        images.Flin_Flon,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
         down_scale=False,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
