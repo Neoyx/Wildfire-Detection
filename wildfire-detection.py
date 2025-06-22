@@ -280,7 +280,7 @@ def main(img: images.Image, plot_sync_zoom: bool = True, down_scale: bool = True
 
 if __name__ == "__main__":
     main(
-        images.Porto_Wildfire_Portugal,  # Change to any image from the images module
+        images.Montreal_Lake,  # Change to any image from the images module
         plot_sync_zoom=True,  # Set to False to disable synchronized zooming
         down_scale=False,  # Set to False to disable downscaling of the images
         down_scale_factor=4  # Factor by which the images are downscaled (2 means half the size)
