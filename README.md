@@ -7,4 +7,4 @@ It's important to only download images from Sentinel L2A. The lower the cloud in
 Once the image is downloaded, you can find the important bands used for the detection in the "GRANULE" folder after opening the zip file. Go to "GRANULE/{image-name}/IMG_DATA/R20M".
 There you can find the bands b04, b03 and b02 used for the color image and b12, b11 and b8a used for the infrared image. For the detection of the fire, we mostly used the infrared bands. 
 Every band in this folder has a resolution of 20m, which means each pixel has a size of 20x20m.
-Now that you are aware of the bands, you can adjust the path to load them. Then simply run the product and start detecting.
+Now that you are aware of the bands, you can adjust the path to load them. Then simply run the file "wildfire-detection.py" and start detecting.
