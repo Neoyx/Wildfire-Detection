@@ -1,6 +1,6 @@
 ### Wildfire Detection
 
-This project is meant to detect wildfires on a given satellite image.
+This product is meant to detect wildfires on a given satellite image.
 We used images of the satellite Sentinel L2A, which already filters out particles from the atmosphere and provides a "bottom-of-atmosphere" view. This improves the detection of the fire.
 To use our product, you first have to download an image from Copernicus (https://browser.dataspace.copernicus.eu) on which you want to detect wildfires.
 It's important to only download images from Sentinel L2A. The lower the cloud index is, the better is the result of the detection.
