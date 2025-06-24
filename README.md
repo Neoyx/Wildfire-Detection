@@ -1,4 +1,4 @@
-###Wildfire Detection
+### Wildfire Detection
 
 This project is meant to detect wildfires on a given satellite image.
 We used images of the satellite Sentinel L2A, which already filters out particles from the atmosphere and provides a "bottom-of-atmosphere" view. This improves the detection of the fire.
