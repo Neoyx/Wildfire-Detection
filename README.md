@@ -22,7 +22,7 @@ You can use this to count the number of fires in the image (useful for debugging
 ### Burnt area detection
 
 #### Why pure thresholding detection does not work
-Like in our fire detection we first tried using different tresholds to detect the burnt areas of the image. Normally band B08a would be really good for this since it provides high values for a healthy vegetation and low values if the opposite is true. However since all used images in this repository also include a fire, the smoke of these fires messes with the values of B08a since it cannot penetrate the smoke to provide useful information. Besides bands B12 and B11 have a hard time differentiating the burnt vegetation from healthy one, at least in the images we worked with.
+Like in our fire detection we first tried using different tresholds to detect the burnt areas of the image. Normally band B08a would be ideal for this since it provides high values for a healthy vegetation and low values for damaged or burnt vegetation. However, since all used images in this repository also include active fires, the smoke interferes with the values of B08a since it cannot penetrate the smoke to provide useful information. Besides bands B12 and B11 have a hard time differentiating the burnt vegetation from healthy areas, at least in the images we analyzed.
 
 #### Edge detection
 While analysing the infrared (B12, B11, B08a) images, we noticed a clear destinction of the burnt and healthy areas. To identify the burnt region more precisely, we decided to apply edge detection techniques.
